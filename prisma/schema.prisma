@@ -1,0 +1,277 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Management and Authentication
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  password_hash     String
+  first_name        String
+  last_name         String
+  phone             String?
+  role_id           Int
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  last_login        DateTime?
+  failed_login_attempts Int  @default(0)
+  account_locked_until DateTime?
+  password_reset_token String?
+  password_reset_expires DateTime?
+  
+  // Relations
+  role              UserRole @relation(fields: [role_id], references: [id])
+  assigned_cases    CaseAssignment[]
+  created_cases     Case[] @relation("CaseCreatedBy")
+  assigned_documents DocumentAssignment[]
+  created_documents Document[] @relation("DocumentCreatedBy")
+  user_notes        UserNote[]
+  audit_logs        AuditLog[]
+
+  @@map("users")
+}
+
+model UserRole {
+  id          Int    @id @default(autoincrement())
+  role_name   String @unique
+  description String?
+  
+  // Permissions
+  can_view_all_cases     Boolean @default(false)
+  can_edit_all_cases     Boolean @default(false)
+  can_delete_cases       Boolean @default(false)
+  can_manage_users       Boolean @default(false)
+  can_manage_lookups     Boolean @default(false)
+  can_assign_tasks       Boolean @default(false)
+  can_view_reports       Boolean @default(false)
+  
+  // Relations
+  users       User[]
+
+  @@map("user_roles")
+}
+
+// Case Management
+model Case {
+  id                Int      @id @default(autoincrement())
+  case_number       String   @unique
+  title             String
+  description       String?
+  case_type_id      Int
+  case_status_id    Int
+  priority_level_id Int
+  created_by        Int
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  closed_at         DateTime?
+  
+  // Relations
+  case_type         CaseType @relation(fields: [case_type_id], references: [id])
+  case_status       CaseStatus @relation(fields: [case_status_id], references: [id])
+  priority_level    PriorityLevel @relation(fields: [priority_level_id], references: [id])
+  created_by_user   User @relation("CaseCreatedBy", fields: [created_by], references: [id])
+  
+  case_assignments  CaseAssignment[]
+  documents         Document[]
+  case_notes        CaseNote[]
+
+  @@map("cases")
+}
+
+model CaseAssignment {
+  id         Int      @id @default(autoincrement())
+  case_id    Int
+  user_id    Int
+  assigned_at DateTime @default(now())
+  assigned_by Int
+  is_active  Boolean  @default(true)
+  
+  // Relations
+  case       Case @relation(fields: [case_id], references: [id])
+  user       User @relation(fields: [user_id], references: [id])
+  
+  @@unique([case_id, user_id])
+  @@map("case_assignments")
+}
+
+// Document Management with Workflow
+model Document {
+  id                   Int      @id @default(autoincrement())
+  case_id              Int
+  document_name        String
+  document_type_id     Int
+  file_path            String
+  file_size            Int?
+  mime_type            String?
+  document_status_id   Int
+  priority_level_id    Int      @default(3) // Default to Medium priority
+  created_by           Int
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+  
+  // Workflow fields (accessible to SuperAdmins and Admins only)
+  assigned_to          Int?     // User assigned to work on this document
+  due_date             DateTime?
+  completion_date      DateTime?
+  review_required      Boolean  @default(false)
+  review_completed     Boolean  @default(false)
+  reviewed_by          Int?
+  reviewed_at          DateTime?
+  workflow_notes       String?
+  
+  // Relations
+  case                 Case @relation(fields: [case_id], references: [id])
+  document_type        DocumentType @relation(fields: [document_type_id], references: [id])
+  document_status      DocumentStatus @relation(fields: [document_status_id], references: [id])
+  priority_level       PriorityLevel @relation(fields: [priority_level_id], references: [id])
+  created_by_user      User @relation("DocumentCreatedBy", fields: [created_by], references: [id])
+  
+  document_assignments DocumentAssignment[]
+
+  @@map("documents")
+}
+
+model DocumentAssignment {
+  id          Int      @id @default(autoincrement())
+  document_id Int
+  user_id     Int
+  assigned_at DateTime @default(now())
+  assigned_by Int
+  is_active   Boolean  @default(true)
+  notes       String?
+  
+  // Relations
+  document    Document @relation(fields: [document_id], references: [id])
+  user        User @relation(fields: [user_id], references: [id])
+  
+  @@unique([document_id, user_id])
+  @@map("document_assignments")
+}
+
+// Lookup Tables (SuperAdmin accessible only)
+model CaseType {
+  id          Int    @id @default(autoincrement())
+  type_name   String @unique
+  description String?
+  is_active   Boolean @default(true)
+  created_at  DateTime @default(now())
+  
+  // Relations
+  cases       Case[]
+
+  @@map("case_types")
+}
+
+model CaseStatus {
+  id          Int    @id @default(autoincrement())
+  status_name String @unique
+  description String?
+  is_active   Boolean @default(true)
+  color_code  String? // For UI display
+  created_at  DateTime @default(now())
+  
+  // Relations
+  cases       Case[]
+
+  @@map("case_statuses")
+}
+
+model DocumentType {
+  id          Int    @id @default(autoincrement())
+  type_name   String @unique
+  description String?
+  is_active   Boolean @default(true)
+  created_at  DateTime @default(now())
+  
+  // Relations
+  documents   Document[]
+
+  @@map("document_types")
+}
+
+model DocumentStatus {
+  id          Int    @id @default(autoincrement())
+  status_name String @unique
+  description String?
+  is_active   Boolean @default(true)
+  color_code  String? // For UI display
+  created_at  DateTime @default(now())
+  
+  // Relations
+  documents   Document[]
+
+  @@map("document_statuses")
+}
+
+model PriorityLevel {
+  id           Int    @id @default(autoincrement())
+  level_name   String @unique
+  level_value  Int    @unique // 1=Critical, 2=High, 3=Medium, 4=Low
+  description  String?
+  color_code   String? // For UI display
+  is_active    Boolean @default(true)
+  created_at   DateTime @default(now())
+  
+  // Relations
+  cases        Case[]
+  documents    Document[]
+
+  @@map("priority_levels")
+}
+
+// Notes and Communication
+model CaseNote {
+  id         Int      @id @default(autoincrement())
+  case_id    Int
+  user_id    Int
+  note_text  String
+  is_private Boolean  @default(false) // Private notes only visible to author and SuperAdmins
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  case       Case @relation(fields: [case_id], references: [id])
+
+  @@map("case_notes")
+}
+
+model UserNote {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  note_text  String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  user       User @relation(fields: [user_id], references: [id])
+
+  @@map("user_notes")
+}
+
+// Audit and Security
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  user_id      Int?
+  action       String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, etc.
+  table_name   String?  // Which table was affected
+  record_id    Int?     // ID of the affected record
+  old_values   Json?    // Previous values (for updates)
+  new_values   Json?    // New values (for creates/updates)
+  ip_address   String?
+  user_agent   String?
+  created_at   DateTime @default(now())
+  
+  // Relations
+  user         User? @relation(fields: [user_id], references: [id])
+
+  @@map("audit_logs")
+}
