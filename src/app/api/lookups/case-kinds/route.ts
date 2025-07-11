@@ -11,13 +11,13 @@ export async function GET() {
     }
 
     // Use raw SQL until Prisma client is fully regenerated
-    const caseStatuses = await prisma.$queryRaw`
-      SELECT id, status_name, description, is_active FROM case_statuses WHERE is_active = 1 ORDER BY status_name ASC
+    const caseKinds = await prisma.$queryRaw`
+      SELECT id, kind_name, description FROM case_kinds WHERE is_active = 1 ORDER BY kind_name ASC
     `
 
-    return NextResponse.json(caseStatuses)
+    return NextResponse.json(caseKinds)
   } catch (error) {
-    console.error('Error fetching case statuses:', error)
+    console.error('Error fetching case kinds:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

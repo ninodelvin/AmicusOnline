@@ -4,6 +4,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import Link from 'next/link'
+import SignOutButton from '@/components/SignOutButton'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
@@ -30,10 +31,6 @@ export default function DashboardPage() {
     return null
   }
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: '/' })
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -51,12 +48,7 @@ export default function DashboardPage() {
               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                 {session.user.role}
               </span>
-              <button 
-                onClick={handleSignOut}
-                className="px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Sign Out
-              </button>
+              <SignOutButton />
             </div>
           </div>
         </div>

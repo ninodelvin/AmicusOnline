@@ -22,11 +22,17 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Find user in database
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-            include: { role: true }
-          })
+          // Find user in database using raw SQL
+          const users = await prisma.$queryRaw`
+            SELECT u.*, ur.role_name, ur.can_view_all_cases, ur.can_edit_all_cases, 
+                   ur.can_delete_cases, ur.can_manage_users, ur.can_manage_lookups,
+                   ur.can_assign_tasks, ur.can_view_reports
+            FROM users u
+            LEFT JOIN user_roles ur ON u.role_id = ur.id
+            WHERE u.email = ${credentials.email}
+          ` as any[]
+
+          const user = users[0]
 
           console.log('User found:', user ? 'Yes' : 'No')
 
@@ -56,15 +62,12 @@ export const authOptions: NextAuthOptions = {
             const failedAttempts = user.failed_login_attempts + 1
             const shouldLock = failedAttempts >= 5
             
-            await prisma.user.update({
-              where: { id: user.id },
-              data: {
-                failed_login_attempts: failedAttempts,
-                account_locked_until: shouldLock 
-                  ? new Date(Date.now() + 30 * 60 * 1000) // Lock for 30 minutes
-                  : null
-              }
-            })
+            await prisma.$executeRaw`
+              UPDATE users 
+              SET failed_login_attempts = ${failedAttempts}, 
+                  account_locked_until = ${shouldLock ? new Date(Date.now() + 30 * 60 * 1000) : null}
+              WHERE id = ${user.id}
+            `
 
             if (shouldLock) {
               throw new Error('Account locked due to multiple failed login attempts')
@@ -74,39 +77,36 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Reset failed login attempts and update last login
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              failed_login_attempts: 0,
-              account_locked_until: null,
-              last_login: new Date()
-            }
-          })
+          await prisma.$executeRaw`
+            UPDATE users 
+            SET failed_login_attempts = 0, account_locked_until = NULL, last_login = ${new Date()}
+            WHERE id = ${user.id}
+          `
 
-          // Log successful login
-          await prisma.auditLog.create({
-            data: {
-              user_id: user.id,
-              action: 'LOGIN',
-              ip_address: '', // Will be populated from request headers
-              created_at: new Date()
-            }
-          })
+          // Log successful login (simplified for now)
+          try {
+            await prisma.$executeRaw`
+              INSERT INTO audit_logs (user_id, action, ip_address, created_at) 
+              VALUES (${user.id}, 'LOGIN', 'unknown', ${new Date()})
+            `
+          } catch (auditError) {
+            console.log('Audit log failed:', auditError)
+          }
 
           return {
             id: user.id.toString(),
             email: user.email,
             name: `${user.first_name} ${user.last_name}`,
-            role: user.role.role_name,
+            role: user.role_name,
             roleId: user.role_id.toString(),
             permissions: {
-              canViewAllCases: user.role.can_view_all_cases,
-              canEditAllCases: user.role.can_edit_all_cases,
-              canDeleteCases: user.role.can_delete_cases,
-              canManageUsers: user.role.can_manage_users,
-              canManageLookups: user.role.can_manage_lookups,
-              canAssignTasks: user.role.can_assign_tasks,
-              canViewReports: user.role.can_view_reports,
+              canViewAllCases: user.can_view_all_cases === 1,
+              canEditAllCases: user.can_edit_all_cases === 1,
+              canDeleteCases: user.can_delete_cases === 1,
+              canManageUsers: user.can_manage_users === 1,
+              canManageLookups: user.can_manage_lookups === 1,
+              canAssignTasks: user.can_assign_tasks === 1,
+              canViewReports: user.can_view_reports === 1,
             }
           }
         } catch (error) {

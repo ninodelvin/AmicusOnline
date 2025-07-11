@@ -260,6 +260,56 @@ async function main() {
     },
   })
 
+  // Create Case Kinds
+  const caseKinds = [
+    'Litigation',
+    'Transactional',
+    'Advisory',
+    'Compliance',
+    'Investigation',
+    'Negotiation',
+    'Arbitration',
+    'Mediation',
+  ]
+
+  for (const kindName of caseKinds) {
+    await prisma.caseKind.upsert({
+      where: { kind_name: kindName },
+      update: {},
+      create: {
+        kind_name: kindName,
+        description: `${kindName} type of legal work`,
+      },
+    })
+  }
+
+  // Create Case Stages
+  const caseStages = [
+    { name: 'Initial Consultation', order: 1 },
+    { name: 'Case Assessment', order: 2 },
+    { name: 'Client Intake', order: 3 },
+    { name: 'Discovery', order: 4 },
+    { name: 'Motion Practice', order: 5 },
+    { name: 'Negotiation', order: 6 },
+    { name: 'Trial Preparation', order: 7 },
+    { name: 'Trial', order: 8 },
+    { name: 'Settlement', order: 9 },
+    { name: 'Appeal', order: 10 },
+    { name: 'Case Closure', order: 11 },
+  ]
+
+  for (const stage of caseStages) {
+    await prisma.caseStage.upsert({
+      where: { stage_name: stage.name },
+      update: {},
+      create: {
+        stage_name: stage.name,
+        description: `${stage.name} phase of case management`,
+        sort_order: stage.order,
+      },
+    })
+  }
+
   // Create default SuperAdmin user
   const hashedPassword = await bcrypt.hash('AmicusAdmin2024!', 10)
   

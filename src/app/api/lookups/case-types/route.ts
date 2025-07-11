@@ -10,10 +10,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const caseTypes = await prisma.caseType.findMany({
-      where: { is_active: true },
-      orderBy: { type_name: 'asc' }
-    })
+    // Use raw SQL until Prisma client is fully regenerated
+    const caseTypes = await prisma.$queryRaw`
+      SELECT id, type_name, description, is_active FROM case_types WHERE is_active = 1 ORDER BY type_name ASC
+    `
 
     return NextResponse.json(caseTypes)
   } catch (error) {

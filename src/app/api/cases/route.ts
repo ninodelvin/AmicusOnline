@@ -16,70 +16,43 @@ export async function GET(request: NextRequest) {
 
     let cases
     
-    // SuperAdmins and Admins can see all cases
+    // Use raw SQL until Prisma client is fully regenerated
     if (userRole === 'SuperAdmin' || userRole === 'Admin') {
-      cases = await prisma.case.findMany({
-        include: {
-          case_type: true,
-          case_status: true,
-          priority_level: true,
-          created_by_user: {
-            select: {
-              first_name: true,
-              last_name: true,
-            }
-          },
-          case_assignments: {
-            include: {
-              user: {
-                select: {
-                  first_name: true,
-                  last_name: true,
-                }
-              }
-            }
-          }
-        },
-        orderBy: {
-          created_at: 'desc'
-        }
-      })
+      cases = await prisma.$queryRaw`
+        SELECT 
+          c.id, c.case_number, c.title, c.description, c.date_filed, c.date_disposed, c.created_at,
+          ct.type_name as case_type_name,
+          ck.kind_name as case_kind_name,
+          cs.status_name as case_status_name,
+          cst.stage_name as case_stage_name,
+          u.first_name as created_by_first_name, u.last_name as created_by_last_name
+        FROM cases c
+        LEFT JOIN case_types ct ON c.case_type_id = ct.id
+        LEFT JOIN case_kinds ck ON c.case_kind_id = ck.id
+        LEFT JOIN case_statuses cs ON c.case_status_id = cs.id
+        LEFT JOIN case_stages cst ON c.case_stage_id = cst.id
+        LEFT JOIN users u ON c.created_by = u.id
+        ORDER BY c.created_at DESC
+      `
     } else {
-      // Attorneys and Paralegals only see assigned cases
-      cases = await prisma.case.findMany({
-        where: {
-          case_assignments: {
-            some: {
-              user_id: userId,
-              is_active: true
-            }
-          }
-        },
-        include: {
-          case_type: true,
-          case_status: true,
-          priority_level: true,
-          created_by_user: {
-            select: {
-              first_name: true,
-              last_name: true,
-            }
-          },
-          case_assignments: {
-            include: {
-              user: {
-                select: {
-                  first_name: true,
-                  last_name: true,
-                }
-              }
-            }
-          }
-        },
-        orderBy: {
-          created_at: 'desc'
-        }
-      })
+      cases = await prisma.$queryRaw`
+        SELECT DISTINCT
+          c.id, c.case_number, c.title, c.description, c.date_filed, c.date_disposed, c.created_at,
+          ct.type_name as case_type_name,
+          ck.kind_name as case_kind_name,
+          cs.status_name as case_status_name,
+          cst.stage_name as case_stage_name,
+          u.first_name as created_by_first_name, u.last_name as created_by_last_name
+        FROM cases c
+        LEFT JOIN case_types ct ON c.case_type_id = ct.id
+        LEFT JOIN case_kinds ck ON c.case_kind_id = ck.id
+        LEFT JOIN case_statuses cs ON c.case_status_id = cs.id
+        LEFT JOIN case_stages cst ON c.case_stage_id = cst.id
+        LEFT JOIN users u ON c.created_by = u.id
+        LEFT JOIN case_assignments ca ON c.id = ca.case_id
+        WHERE ca.user_id = ${userId} AND ca.is_active = 1
+        ORDER BY c.created_at DESC
+      `
     }
 
     return NextResponse.json(cases)
@@ -98,10 +71,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, case_type_id, case_status_id, priority_level_id, assigned_users } = body
+    const { title, description, date_filed, date_disposed, case_type_id, case_kind_id, case_status_id, case_stage_id, assigned_users } = body
 
     // Validate required fields
-    if (!title || !case_type_id || !case_status_id || !priority_level_id) {
+    if (!title || !case_type_id || !case_kind_id || !case_status_id || !case_stage_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -129,61 +102,67 @@ export async function POST(request: NextRequest) {
     const sequenceNumber = (todayCases + 1).toString().padStart(3, '0')
     const caseNumber = `CASE-${dateStr}-${sequenceNumber}`
 
-    // Create the case
-    const newCase = await prisma.case.create({
-      data: {
-        case_number: caseNumber,
-        title,
-        description: description || null,
-        case_type_id: parseInt(case_type_id),
-        case_status_id: parseInt(case_status_id),
-        priority_level_id: parseInt(priority_level_id),
-        created_by: userId,
-      },
-      include: {
-        case_type: true,
-        case_status: true,
-        priority_level: true,
-        created_by_user: {
-          select: {
-            first_name: true,
-            last_name: true,
-          }
-        }
-      }
-    })
+    // Create the case using raw SQL
+    const now = new Date()
+    const result = await prisma.$queryRaw`
+      INSERT INTO cases (
+        case_number, title, description, date_filed, date_disposed, 
+        case_type_id, case_kind_id, case_status_id, case_stage_id, created_by,
+        created_at, updated_at
+      ) VALUES (
+        ${caseNumber}, ${title}, ${description || null}, 
+        ${date_filed ? new Date(date_filed) : null}, 
+        ${date_disposed ? new Date(date_disposed) : null},
+        ${parseInt(case_type_id)}, ${parseInt(case_kind_id)}, 
+        ${parseInt(case_status_id)}, ${parseInt(case_stage_id)}, ${userId},
+        ${now}, ${now}
+      )
+    `
+
+    // Get the newly created case
+    const newCase = await prisma.$queryRaw`
+      SELECT 
+        c.id, c.case_number, c.title, c.description, c.date_filed, c.date_disposed, c.created_at,
+        ct.type_name as case_type_name,
+        ck.kind_name as case_kind_name,
+        cs.status_name as case_status_name,
+        cst.stage_name as case_stage_name,
+        u.first_name as created_by_first_name, u.last_name as created_by_last_name
+      FROM cases c
+      LEFT JOIN case_types ct ON c.case_type_id = ct.id
+      LEFT JOIN case_kinds ck ON c.case_kind_id = ck.id
+      LEFT JOIN case_statuses cs ON c.case_status_id = cs.id
+      LEFT JOIN case_stages cst ON c.case_stage_id = cst.id
+      LEFT JOIN users u ON c.created_by = u.id
+      WHERE c.case_number = ${caseNumber}
+      ORDER BY c.id DESC
+      LIMIT 1
+    ` as any[]
+
+    const createdCase = newCase[0]
 
     // Create case assignments if users are assigned
     if (assigned_users && assigned_users.length > 0) {
-      await prisma.caseAssignment.createMany({
-        data: assigned_users.map((assignedUserId: number) => ({
-          case_id: newCase.id,
-          user_id: assignedUserId,
-          assigned_by: userId,
-        }))
-      })
+      for (const assignedUserId of assigned_users) {
+        await prisma.$executeRaw`
+          INSERT INTO case_assignments (case_id, user_id, assigned_by, is_active) 
+          VALUES (${createdCase.id}, ${assignedUserId}, ${userId}, 1)
+        `
+      }
     }
 
-    // Log the creation
-    await prisma.auditLog.create({
-      data: {
-        user_id: userId,
-        action: 'CREATE_CASE',
-        table_name: 'cases',
-        record_id: newCase.id,
-        new_values: {
-          case_number: newCase.case_number,
-          title: newCase.title,
-          case_type_id: newCase.case_type_id,
-          case_status_id: newCase.case_status_id,
-          priority_level_id: newCase.priority_level_id
-        },
-        ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-        user_agent: request.headers.get('user-agent') || 'unknown',
-      }
-    })
+    // Log the creation (simplified for now)
+    try {
+      await prisma.$executeRaw`
+        INSERT INTO audit_logs (user_id, action, table_name, record_id, ip_address, user_agent, created_at) 
+        VALUES (${userId}, 'CREATE_CASE', 'cases', ${createdCase.id}, 'unknown', 'unknown', ${new Date()})
+      `
+    } catch (auditError) {
+      console.log('Audit log failed:', auditError)
+      // Don't fail the whole operation if audit logging fails
+    }
 
-    return NextResponse.json(newCase, { status: 201 })
+    return NextResponse.json(createdCase, { status: 201 })
   } catch (error) {
     console.error('Error creating case:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

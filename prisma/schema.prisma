@@ -66,18 +66,21 @@ model Case {
   case_number       String   @unique
   title             String
   description       String?
+  date_filed        DateTime?
+  date_disposed     DateTime?
   case_type_id      Int
+  case_kind_id      Int
   case_status_id    Int
-  priority_level_id Int
+  case_stage_id     Int
   created_by        Int
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
-  closed_at         DateTime?
   
   // Relations
   case_type         CaseType @relation(fields: [case_type_id], references: [id])
+  case_kind         CaseKind @relation(fields: [case_kind_id], references: [id])
   case_status       CaseStatus @relation(fields: [case_status_id], references: [id])
-  priority_level    PriorityLevel @relation(fields: [priority_level_id], references: [id])
+  case_stage        CaseStage @relation(fields: [case_stage_id], references: [id])
   created_by_user   User @relation("CaseCreatedBy", fields: [created_by], references: [id])
   
   case_assignments  CaseAssignment[]
@@ -222,10 +225,36 @@ model PriorityLevel {
   created_at   DateTime @default(now())
   
   // Relations
-  cases        Case[]
   documents    Document[]
 
   @@map("priority_levels")
+}
+
+model CaseKind {
+  id          Int    @id @default(autoincrement())
+  kind_name   String @unique
+  description String?
+  is_active   Boolean @default(true)
+  created_at  DateTime @default(now())
+  
+  // Relations
+  cases       Case[]
+
+  @@map("case_kinds")
+}
+
+model CaseStage {
+  id          Int    @id @default(autoincrement())
+  stage_name  String @unique
+  description String?
+  is_active   Boolean @default(true)
+  sort_order  Int?   // For ordering stages logically
+  created_at  DateTime @default(now())
+  
+  // Relations
+  cases       Case[]
+
+  @@map("case_stages")
 }
 
 // Notes and Communication

@@ -3,72 +3,46 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import Link from 'next/link'
+import SignOutButton from '../../components/SignOutButton'
 
 async function getCases(userId: number, userRole: string) {
-  // SuperAdmins and Admins can see all cases
+  // Use raw SQL until Prisma client is fully regenerated
   if (userRole === 'SuperAdmin' || userRole === 'Admin') {
-    return await prisma.case.findMany({
-      include: {
-        case_type: true,
-        case_status: true,
-        priority_level: true,
-        created_by_user: {
-          select: {
-            first_name: true,
-            last_name: true,
-          }
-        },
-        case_assignments: {
-          include: {
-            user: {
-              select: {
-                first_name: true,
-                last_name: true,
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    })
+    return await prisma.$queryRaw`
+      SELECT 
+        c.id, c.case_number, c.title, c.description, c.date_filed, c.date_disposed, c.created_at,
+        ct.type_name as case_type_name,
+        ck.kind_name as case_kind_name,
+        cs.status_name as case_status_name,
+        cst.stage_name as case_stage_name,
+        u.first_name as created_by_first_name, u.last_name as created_by_last_name
+      FROM cases c
+      LEFT JOIN case_types ct ON c.case_type_id = ct.id
+      LEFT JOIN case_kinds ck ON c.case_kind_id = ck.id
+      LEFT JOIN case_statuses cs ON c.case_status_id = cs.id
+      LEFT JOIN case_stages cst ON c.case_stage_id = cst.id
+      LEFT JOIN users u ON c.created_by = u.id
+      ORDER BY c.created_at DESC
+    `
   } else {
-    // Attorneys and Paralegals only see assigned cases
-    return await prisma.case.findMany({
-      where: {
-        case_assignments: {
-          some: {
-            user_id: userId,
-            is_active: true
-          }
-        }
-      },
-      include: {
-        case_type: true,
-        case_status: true,
-        priority_level: true,
-        created_by_user: {
-          select: {
-            first_name: true,
-            last_name: true,
-          }
-        },
-        case_assignments: {
-          include: {
-            user: {
-              select: {
-                first_name: true,
-                last_name: true,
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    })
+    return await prisma.$queryRaw`
+      SELECT DISTINCT
+        c.id, c.case_number, c.title, c.description, c.date_filed, c.date_disposed, c.created_at,
+        ct.type_name as case_type_name,
+        ck.kind_name as case_kind_name,
+        cs.status_name as case_status_name,
+        cst.stage_name as case_stage_name,
+        u.first_name as created_by_first_name, u.last_name as created_by_last_name
+      FROM cases c
+      LEFT JOIN case_types ct ON c.case_type_id = ct.id
+      LEFT JOIN case_kinds ck ON c.case_kind_id = ck.id
+      LEFT JOIN case_statuses cs ON c.case_status_id = cs.id
+      LEFT JOIN case_stages cst ON c.case_stage_id = cst.id
+      LEFT JOIN users u ON c.created_by = u.id
+      LEFT JOIN case_assignments ca ON c.id = ca.case_id
+      WHERE ca.user_id = ${userId} AND ca.is_active = 1
+      ORDER BY c.created_at DESC
+    `
   }
 }
 
@@ -79,7 +53,7 @@ export default async function CasesPage() {
     redirect('/auth/login')
   }
 
-  const cases = await getCases(parseInt(session.user.id), session.user.role)
+  const cases = await getCases(parseInt(session.user.id), session.user.role) as any[]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -94,12 +68,23 @@ export default async function CasesPage() {
               <h1 className="text-2xl font-bold text-gray-900">Case Management</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link 
-                href="/cases/new"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Create New Case
-              </Link>
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-700">
+                  Welcome, {session.user.name}
+                </span>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  {session.user.role}
+                </span>
+                <SignOutButton />
+              </div>
+              <div className="border-l border-gray-300 pl-4">
+                <Link 
+                  href="/cases/new"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Create New Case
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -116,19 +101,19 @@ export default async function CasesPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="text-sm font-medium text-gray-500">Active Cases</div>
             <div className="text-2xl font-bold text-green-600">
-              {cases.filter(c => c.case_status.status_name !== 'Closed').length}
+              {cases.filter((c: any) => c.case_status_name !== 'Closed').length}
             </div>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-500">High Priority</div>
+            <div className="text-sm font-medium text-gray-500">Criminal Defense</div>
             <div className="text-2xl font-bold text-red-600">
-              {cases.filter(c => c.priority_level.level_name === 'High').length}
+              {cases.filter((c: any) => c.case_kind_name === 'Criminal Defense').length}
             </div>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <div className="text-sm font-medium text-gray-500">This Month</div>
             <div className="text-2xl font-bold text-blue-600">
-              {cases.filter(c => {
+              {cases.filter((c: any) => {
                 const caseDate = new Date(c.created_at)
                 const now = new Date()
                 return caseDate.getMonth() === now.getMonth() && caseDate.getFullYear() === now.getFullYear()
@@ -168,16 +153,16 @@ export default async function CasesPage() {
                       Type
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kind
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Priority
+                      Stage
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Assigned To
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
+                      Date Filed
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -185,7 +170,7 @@ export default async function CasesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {cases.map((case_) => (
+                  {cases.map((case_: any) => (
                     <tr key={case_.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                         <Link href={`/cases/${case_.id}`} className="hover:text-blue-800">
@@ -196,37 +181,27 @@ export default async function CasesPage() {
                         {case_.title}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {case_.case_type.type_name}
+                        {case_.case_type_name || 'Not Set'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {case_.case_kind_name || 'Not Set'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          case_.case_status.status_name === 'Active' 
+                          case_.case_status_name === 'Active' 
                             ? 'bg-green-100 text-green-800'
-                            : case_.case_status.status_name === 'Pending'
+                            : case_.case_status_name === 'Pending'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {case_.case_status.status_name}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          case_.priority_level.level_name === 'High'
-                            ? 'bg-red-100 text-red-800'
-                            : case_.priority_level.level_name === 'Medium'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {case_.priority_level.level_name}
+                          {case_.case_status_name || 'Not Set'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {case_.case_assignments.map(assignment => 
-                          `${assignment.user.first_name} ${assignment.user.last_name}`
-                        ).join(', ') || 'Unassigned'}
+                        {case_.case_stage_name || 'Not Set'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(case_.created_at).toLocaleDateString()}
+                        {case_.date_filed ? new Date(case_.date_filed).toLocaleDateString() : 'Not Set'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link 

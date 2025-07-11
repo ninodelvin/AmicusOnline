@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import SignOutButton from '@/components/SignOutButton'
 
 interface CaseType {
   id: number
@@ -15,9 +16,14 @@ interface CaseStatus {
   status_name: string
 }
 
-interface PriorityLevel {
+interface CaseKind {
   id: number
-  level_name: string
+  kind_name: string
+}
+
+interface CaseStage {
+  id: number
+  stage_name: string
 }
 
 interface User {
@@ -37,32 +43,38 @@ export default function NewCasePage() {
   const [caseData, setCaseData] = useState({
     title: '',
     description: '',
+    date_filed: '',
+    date_disposed: '',
     case_type_id: '',
+    case_kind_id: '',
     case_status_id: '',
-    priority_level_id: '',
+    case_stage_id: '',
     assigned_users: [] as number[]
   })
 
   // Lookup data
   const [caseTypes, setCaseTypes] = useState<CaseType[]>([])
+  const [caseKinds, setCaseKinds] = useState<CaseKind[]>([])
   const [caseStatuses, setCaseStatuses] = useState<CaseStatus[]>([])
-  const [priorityLevels, setPriorityLevels] = useState<PriorityLevel[]>([])
+  const [caseStages, setCaseStages] = useState<CaseStage[]>([])
   const [users, setUsers] = useState<User[]>([])
 
   // Load lookup data
   useEffect(() => {
     async function loadLookups() {
       try {
-        const [typesRes, statusesRes, prioritiesRes, usersRes] = await Promise.all([
+        const [typesRes, kindsRes, statusesRes, stagesRes, usersRes] = await Promise.all([
           fetch('/api/lookups/case-types'),
+          fetch('/api/lookups/case-kinds'),
           fetch('/api/lookups/case-statuses'),
-          fetch('/api/lookups/priority-levels'),
+          fetch('/api/lookups/case-stages'),
           fetch('/api/users')
         ])
 
         if (typesRes.ok) setCaseTypes(await typesRes.json())
+        if (kindsRes.ok) setCaseKinds(await kindsRes.json())
         if (statusesRes.ok) setCaseStatuses(await statusesRes.json())
-        if (prioritiesRes.ok) setPriorityLevels(await prioritiesRes.json())
+        if (stagesRes.ok) setCaseStages(await stagesRes.json())
         if (usersRes.ok) setUsers(await usersRes.json())
       } catch (error) {
         console.error('Error loading lookups:', error)
@@ -90,7 +102,8 @@ export default function NewCasePage() {
 
       if (response.ok) {
         const newCase = await response.json()
-        router.push(`/cases/${newCase.id}`)
+        // For now, redirect to cases list since individual case view isn't implemented yet
+        router.push('/cases')
       } else {
         const errorData = await response.json()
         setError(errorData.error || 'Failed to create case')
@@ -125,6 +138,15 @@ export default function NewCasePage() {
                 ← Back to Cases
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Create New Case</h1>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-700">
+                Welcome, {session.user.name}
+              </span>
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                {session.user.role}
+              </span>
+              <SignOutButton />
             </div>
           </div>
         </div>
@@ -175,8 +197,39 @@ export default function NewCasePage() {
               />
             </div>
 
-            {/* Row 1: Type, Status, Priority */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Date Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Date Filed */}
+              <div>
+                <label htmlFor="date_filed" className="block text-sm font-medium text-gray-700 mb-2">
+                  Date Filed
+                </label>
+                <input
+                  type="date"
+                  id="date_filed"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={caseData.date_filed}
+                  onChange={(e) => setCaseData(prev => ({ ...prev, date_filed: e.target.value }))}
+                />
+              </div>
+
+              {/* Date Disposed */}
+              <div>
+                <label htmlFor="date_disposed" className="block text-sm font-medium text-gray-700 mb-2">
+                  Date Disposed
+                </label>
+                <input
+                  type="date"
+                  id="date_disposed"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={caseData.date_disposed}
+                  onChange={(e) => setCaseData(prev => ({ ...prev, date_disposed: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Row 1: Type, Kind, Status, Stage */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Case Type */}
               <div>
                 <label htmlFor="case_type_id" className="block text-sm font-medium text-gray-700 mb-2">
@@ -193,6 +246,27 @@ export default function NewCasePage() {
                   {caseTypes.map(type => (
                     <option key={type.id} value={type.id}>
                       {type.type_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Case Kind */}
+              <div>
+                <label htmlFor="case_kind_id" className="block text-sm font-medium text-gray-700 mb-2">
+                  Case Kind *
+                </label>
+                <select
+                  id="case_kind_id"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={caseData.case_kind_id}
+                  onChange={(e) => setCaseData(prev => ({ ...prev, case_kind_id: e.target.value }))}
+                >
+                  <option value="">Select case kind</option>
+                  {caseKinds.map(kind => (
+                    <option key={kind.id} value={kind.id}>
+                      {kind.kind_name}
                     </option>
                   ))}
                 </select>
@@ -219,22 +293,22 @@ export default function NewCasePage() {
                 </select>
               </div>
 
-              {/* Priority Level */}
+              {/* Case Stage */}
               <div>
-                <label htmlFor="priority_level_id" className="block text-sm font-medium text-gray-700 mb-2">
-                  Priority *
+                <label htmlFor="case_stage_id" className="block text-sm font-medium text-gray-700 mb-2">
+                  Case Stage *
                 </label>
                 <select
-                  id="priority_level_id"
+                  id="case_stage_id"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={caseData.priority_level_id}
-                  onChange={(e) => setCaseData(prev => ({ ...prev, priority_level_id: e.target.value }))}
+                  value={caseData.case_stage_id}
+                  onChange={(e) => setCaseData(prev => ({ ...prev, case_stage_id: e.target.value }))}
                 >
-                  <option value="">Select priority</option>
-                  {priorityLevels.map(priority => (
-                    <option key={priority.id} value={priority.id}>
-                      {priority.level_name}
+                  <option value="">Select stage</option>
+                  {caseStages.map(stage => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.stage_name}
                     </option>
                   ))}
                 </select>
