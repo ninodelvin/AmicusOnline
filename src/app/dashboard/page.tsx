@@ -31,6 +31,61 @@ export default function DashboardPage() {
     return null
   }
 
+  // Role-based dashboard logic
+  const isRegularUser = session.user.role === 'Regular'
+  const isAdmin = session.user.role === 'Admin' 
+  const isSuperAdmin = session.user.role === 'SuperAdmin'
+
+  // Regular users get a simplified dashboard
+  if (isRegularUser) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6">
+            <div className="flex justify-between items-center h-12">
+              <div className="flex items-center">
+                <h1 className="text-lg font-bold text-blue-900">AmicusOnline</h1>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <span className="text-xs text-gray-700">
+                  Welcome, {session.user.name}
+                </span>
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                  {session.user.role}
+                </span>
+                <SignOutButton />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content - Regular User View */}
+        <main className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">My Cases</h2>
+            <p className="text-sm text-gray-600">Cases assigned to you</p>
+          </div>
+
+          {/* Cases List */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-base font-medium text-gray-900">Assigned Cases</h3>
+            </div>
+            <div className="p-4">
+              <div className="text-center text-gray-500 py-8">
+                <p className="text-sm">No cases assigned to you yet</p>
+                <p className="text-xs text-gray-400">Contact your administrator if you need access to cases</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Admin and SuperAdmin dashboard
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -119,12 +174,14 @@ export default function DashboardPage() {
               <h3 className="text-base font-medium text-gray-900">Quick Actions</h3>
             </div>
             <div className="p-4 space-y-3">
-              <Link 
-                href="/cases/new" 
-                className="flex items-center p-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                <span className="text-sm text-gray-900 font-medium">Create New Case</span>
-              </Link>
+              {(isAdmin || isSuperAdmin) && (
+                <Link 
+                  href="/cases/new" 
+                  className="flex items-center p-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  <span className="text-sm text-gray-900 font-medium">Create New Case</span>
+                </Link>
+              )}
 
               <Link 
                 href="/cases" 
@@ -140,7 +197,7 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-900 font-medium">Document Library</span>
               </Link>
 
-              {session.user.permissions.canManageUsers && (
+              {(session.user.permissions?.canManageUsers || isAdmin || isSuperAdmin) && (
                 <Link 
                   href="/users" 
                   className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -149,7 +206,7 @@ export default function DashboardPage() {
                 </Link>
               )}
 
-              {session.user.permissions.canManageLookups && (
+              {(session.user.permissions?.canManageLookups || isSuperAdmin) && (
                 <Link 
                   href="/admin/lookups" 
                   className="flex items-center p-2 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"

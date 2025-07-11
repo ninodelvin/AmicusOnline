@@ -10,36 +10,26 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only show active users (exclude SuperAdmins from assignment list for security)
-    const users = await prisma.user.findMany({
-      where: {
-        is_active: true,
-        role: {
-          role_name: {
-            not: 'SuperAdmin' // Don't show SuperAdmins in assignment list
-          }
-        }
-      },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        role: {
-          select: {
-            role_name: true
-          }
-        }
-      },
-      orderBy: [
-        { first_name: 'asc' },
-        { last_name: 'asc' }
-      ]
-    })
+    // Get all active users with their roles using raw SQL for consistency
+    const users = await prisma.$queryRaw`
+      SELECT 
+        u.id, 
+        u.first_name, 
+        u.last_name, 
+        u.email, 
+        u.is_active,
+        u.created_at,
+        u.last_login,
+        ur.role_name
+      FROM users u
+      LEFT JOIN user_roles ur ON u.role_id = ur.id
+      WHERE u.is_active = 1
+      ORDER BY ur.id, u.first_name, u.last_name
+    `
 
-    return NextResponse.json(users)
+    return NextResponse.json({ users })
   } catch (error) {
     console.error('Error fetching users:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
   }
 }

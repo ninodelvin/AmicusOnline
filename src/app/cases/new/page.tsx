@@ -38,6 +38,20 @@ export default function NewCasePage() {
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Check if user has permission to create cases
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/login')
+      return
+    }
+    
+    if (session && session.user.role === 'Regular') {
+      // Regular users cannot create cases - redirect to dashboard
+      router.push('/dashboard')
+      return
+    }
+  }, [session, status, router])
   
   // Form data
   const [caseData, setCaseData] = useState({
