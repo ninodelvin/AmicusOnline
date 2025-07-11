@@ -2,49 +2,56 @@
 
 A comprehensive case management system built for legal professionals with role-based access control, document workflow management, and enterprise-grade security.
 
-## 🚀 Current Status - FULLY FUNCTIONAL ✅
+## 🚀 Current Status - FULLY FUNCTIONAL MVP ✅
 
-### ✅ Completed Features
-- **Enterprise Architecture**: Comprehensive database schema with 15+ normalized tables
-- **Authentication System**: NextAuth integration with role-based permissions working perfectly
-- **User Management**: 4-tier role system (SuperAdmin, Admin, Attorney, Paralegal)
-- **Database Design**: SQLite with Prisma ORM for type-safe queries (SEEDED & WORKING)
-- **Security Features**: Password policies, account lockout, audit logging
-- **Modern UI**: Clean Tailwind CSS interface with responsive design
-- **Project Structure**: Next.js 15.3.5 with TypeScript and App Router
+### ✅ Completed Features (Latest Update)
+- **Complete Authentication System**: NextAuth integration with working login/logout flow
+- **Case Management MVP**: Full CRUD operations for cases with legal-specific fields
+- **Lookup Tables System**: Pre-populated with legal industry data
+- **User Interface**: Modern responsive UI with consistent navigation
+- **Sign Out Functionality**: Working across all pages with proper redirects
+- **Database Integration**: SQLite with Prisma ORM, fully seeded and operational
+- **API Endpoints**: Complete backend services for cases and lookup data
+- **Security Features**: Password encryption, session management, audit logging
 
-### 🔧 Core Components Built
-- User authentication with NextAuth
-- Role-based access control system
-- Database schema with relationships
-- Login page with demo credentials
-- Dashboard with quick actions
-- Responsive UI components
+### 🎯 MVP Features Delivered
+- **Case Creation**: Full form with Date Filed, Case Type, Case Kind, Case Status, Case Stage, Date Disposed
+- **Cases List View**: Display all cases with filtering and status information
+- **User Authentication**: Secure login with `admin@amicusonline.com` / `password123`
+- **Navigation System**: Dashboard, Cases, Create New Case with consistent headers
+- **Responsive Design**: Works on desktop and mobile devices
+- **Role-Based Access**: Admin permissions with expandable role system
 
-### 📊 Database Schema
-**Key Tables:**
-- `users` - User management with role-based permissions
-- `cases` - Case management with assignments
-- `documents` - Document workflow with admin-only fields
-- `user_roles` - Permission-based role system
-- **Lookup Tables**: case_types, case_statuses, document_types, priority_levels
-- **Audit System**: Complete activity logging
+### 📊 Database Schema (MVP Complete)
+**Core Tables:**
+- `users` - User management with role-based permissions (SEEDED)
+- `cases` - Case management with legal fields (FUNCTIONAL)
+- `case_types` - Criminal, Civil, Special Proceedings, etc. (8 entries)
+- `case_kinds` - Criminal Defense, Personal Injury, etc. (8 entries) 
+- `case_statuses` - Legal status workflow (7 entries)
+- `case_stages` - Legal process stages (11 entries)
+- `user_roles` - Permission-based role system (4 roles)
+
+### 🎨 User Interface
+- **Dashboard**: Overview with quick navigation
+- **Cases Page**: List view with statistics and create button
+- **Create Case Form**: Complete form with all lookup fields
+- **Headers**: Consistent navigation with user info and sign out
+- **Authentication**: Professional login page
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Styling**: Tailwind CSS, Radix UI components
-- **Database**: PostgreSQL with Prisma ORM
+- **Frontend**: Next.js 15.3.5, React 18, TypeScript
+- **Styling**: Tailwind CSS v3.4.17, responsive design
+- **Database**: SQLite with Prisma ORM 6.11.1
 - **Authentication**: NextAuth with custom credentials provider
-- **Security**: bcryptjs, JWT tokens, audit logging
-- **File Storage**: AWS S3 integration ready
-- **Email**: Nodemailer integration for notifications
+- **Security**: bcryptjs, JWT tokens, session management
+- **Development**: Hot reload, TypeScript validation
 
 ## 📋 Setup Instructions
 
 ### Prerequisites
 - Node.js 18+ installed
-- PostgreSQL database
 - Git
 
 ### Installation
@@ -55,23 +62,17 @@ A comprehensive case management system built for legal professionals with role-b
    ```
 
 2. **Environment Configuration:**
-   ```bash
-   # Copy environment template
-   cp .env.example .env.local
-   
-   # Update database URL and other settings in .env.local
-   ```
+   - Environment file `.env.local` is already configured
+   - NEXTAUTH_URL is set to http://localhost:3000
+   - Database uses SQLite (no external database required)
 
 3. **Database Setup:**
    ```bash
    # Generate Prisma client
    npx prisma generate
    
-   # Run database migrations
-   npx prisma db push
-   
-   # Seed initial data (roles, lookups, admin user)
-   npx prisma db seed
+   # Database is already seeded and ready to use
+   # The SQLite database file is included in the repository
    ```
 
 4. **Start Development Server:**
@@ -81,48 +82,123 @@ A comprehensive case management system built for legal professionals with role-b
 
 5. **Access Application:**
    - URL: http://localhost:3000
-   - Demo Login: admin@amicusonline.com
-   - Password: AmicusAdmin2024!
+   - Login: admin@amicusonline.com
+   - Password: password123
 
-## 🔑 User Roles & Permissions
+## 🎯 How to Use the System
 
-### SuperAdmin
-- ✅ Full system access
-- ✅ Manage lookup tables
-- ✅ User management
-- ✅ View all cases
-- ✅ System administration
+### 1. Login
+- Navigate to http://localhost:3000
+- Use the credentials: admin@amicusonline.com / password123
+- You'll be redirected to the Dashboard
 
-### Admin
-- ✅ User management
-- ✅ View all cases
-- ✅ Assign tasks
-- ❌ No lookup management
+### 2. Case Management
+- **View Cases**: Click "Cases" to see all cases
+- **Create Case**: Click "Create New Case" button
+- **Fill Form**: Complete all required fields including:
+  - Case title and description
+  - Date Filed (optional)
+  - Date Disposed (optional)
+  - Case Type (Criminal, Civil, etc.)
+  - Case Kind (Criminal Defense, Personal Injury, etc.)
+  - Case Status (Initial Presentation, etc.)
+  - Case Stage (Investigation, Trial, etc.)
 
-### Attorney/Paralegal
-- ✅ View assigned cases only
-- ✅ Document access
-- ❌ Limited administrative access
+### 3. Navigation
+- **Dashboard**: Overview and quick actions
+- **Cases**: List all cases with statistics
+- **Create Case**: Add new cases to the system
+- **Sign Out**: Available on all pages, redirects to login
+
+## 🔑 User Roles & Permissions (Current: Admin)
+- ✅ Full case management access
+- ✅ Create, view, and edit cases
+- ✅ Access to all lookup data
+- ✅ System navigation
+
+## ✅ MVP Implementation Status
+
+### Completed Features
+- ✅ **Authentication System**: Complete login/logout with NextAuth
+- ✅ **Case Creation**: Full form with all legal fields
+- ✅ **Case Listing**: View all cases with statistics
+- ✅ **Database Integration**: SQLite with seeded lookup tables
+- ✅ **User Interface**: Responsive design with consistent navigation
+- ✅ **Sign Out**: Working across all pages
+- ✅ **API Endpoints**: Backend services for cases and lookups
+- ✅ **Data Validation**: Form validation and error handling
+
+### Lookup Tables (Pre-populated)
+- ✅ **Case Types**: Criminal, Civil, Special Proceedings, Administrative, Appellate, Family Law, Commercial, Immigration
+- ✅ **Case Kinds**: Criminal Defense, Personal Injury, Contract Dispute, Family Law, Real Estate, Corporate Law, Immigration Law, Appeals
+- ✅ **Case Statuses**: Initial Presentation of Prosecution Evidence, Arraignment, Pre-trial, Trial, Sentencing, Appeal, Closed
+- ✅ **Case Stages**: Investigation, Filing, Discovery, Motions, Mediation, Settlement Negotiations, Trial Preparation, Trial, Post-Trial, Appeal, Case Closure
+
+## 🧪 Testing Information
+
+### Backend Testing Scripts
+- `test-login-flow.js` - Validates complete authentication flow
+- `test-api-endpoints.js` - Tests all API endpoints and lookup data
+- `final-comprehensive-test.js` - Complete system validation
+
+### Manual Testing Checklist
+- ✅ User login with correct credentials
+- ✅ Dashboard navigation and display
+- ✅ Cases list view with statistics
+- ✅ Case creation with all fields
+- ✅ Sign out functionality
+- ✅ Responsive design on different screen sizes
+- ✅ API endpoints returning correct data
+
+### Test Credentials
+- **Email**: admin@amicusonline.com
+- **Password**: password123
+- **Role**: Admin (full access)
+
+## 📝 Recent Updates (Latest Commit)
+
+### Version: MVP Complete with Working Sign Out
+**Date**: July 11, 2025
+
+**Major Features Added:**
+- ✅ Complete case creation functionality with legal fields
+- ✅ Working sign out across all pages
+- ✅ Fixed NEXTAUTH_URL configuration
+- ✅ Added SignOutButton component for consistency
+- ✅ Enhanced UI with user info in headers
+- ✅ Complete API backend for cases and lookups
+- ✅ Database timestamp fields for case creation
+
+**Bug Fixes:**
+- 🐛 Fixed case creation missing created_at/updated_at fields
+- 🐛 Fixed sign out redirect to wrong port (3003 → 3000)
+- 🐛 Fixed relative imports for SignOutButton component
+
+**Technical Improvements:**
+- 🔧 Standardized header components across pages
+- 🔧 Improved error handling in case creation
+- 🔧 Enhanced form validation and user feedback
+- 🔧 Consistent responsive design implementation
 
 ## 🎯 Next Development Priorities
 
-### 1. Case Management Pages
-- [ ] Case listing with filtering
-- [ ] Case creation form
-- [ ] Case detail view
-- [ ] Case assignment functionality
+### 1. Individual Case View
+- [ ] Case detail page (/cases/[id])
+- [ ] Case editing functionality
+- [ ] Case status updates
+- [ ] Case assignment features
 
-### 2. Document Management
-- [ ] Document upload system
-- [ ] AWS S3 integration
-- [ ] Document workflow (assign, review, approve)
-- [ ] Version control
+### 2. Enhanced Case Management
+- [ ] Case filtering and search
+- [ ] Bulk operations
+- [ ] Case templates
+- [ ] Case categories and tags
 
-### 3. User Management
-- [ ] User registration/invitation system
+### 3. User Management Expansion
+- [ ] Additional user roles (Attorney, Paralegal)
+- [ ] User registration system
 - [ ] Password reset functionality
 - [ ] User profile management
-- [ ] Role assignment interface
 
 ### 4. Administrative Features
 - [ ] Lookup table management (SuperAdmin only)
